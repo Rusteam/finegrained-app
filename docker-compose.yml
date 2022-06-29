@@ -1,0 +1,20 @@
+services:
+  triton:
+    build:
+      dockerfile: Triton.dockerfile
+      context: .
+    image: triton-server:22.05-py3
+    volumes:
+      - ./models/triton:/models
+#      - ./py39-transformers.tar.gz:/opt/tritonserver/backends/python/py39-transformers.tar.gz
+    ports:
+      - 8000:8000
+      - 8001:8001
+      - 8002:8002
+    shm_size: 2g
+    command: >-
+      tritonserver
+      --model-repository=/models
+      --strict-model-config=false
+      --model-control-mode=explicit
+      --load-model=*
