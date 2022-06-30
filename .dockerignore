@@ -1,3 +1,9 @@
 *
+
+# backend
 !/backend
 !main.py
+
+# frontend
+!/frontend
+!app.py

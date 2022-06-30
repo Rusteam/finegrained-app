@@ -5,6 +5,7 @@ services:
       context: .
     image: triton-server:22.05-py3
     container_name: triton
+    restart: on-failure
     volumes:
       - ./models/triton:/models
     ports:
@@ -23,12 +24,30 @@ services:
     build:
       dockerfile: Backend.dockerfile
       context: .
-    image: finegrained-app-backend:0.1
+    image: finegrained-app/backend:0.1
     container_name: fg-backend
+    restart: on-failure
     environment:
       - VECTOR_STORAGE=/data/vectors
       - TRITON_HOST=triton:8001
     volumes:
       - ./data/vectors:/data/vectors
     ports:
-      - 8010:8000
+      - 8100:8100
+    depends_on:
+      - triton
+
+  frontend:
+    build:
+      dockerfile: Frontend.dockerfile
+      context: .
+    image: finegrained-app/frontend:0.1
+    container_name: fg-frontend
+    restart: on-failure
+    environment:
+      - BACKEND_URL=http://backend:8100
+      - GRADIO_DEBUG=false
+    env_file:
+      - .gradio.env
+    depends_on:
+      - backend
