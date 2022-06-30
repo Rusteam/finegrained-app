@@ -17,6 +17,13 @@ def calc_num_batches(data_size: int, batch_size: int) -> int:
     return n_batches
 
 
+def mean_pooling(token_embeddings, attention_mask):
+    input_mask_expanded = attention_mask[..., np.newaxis].astype(np.float32)
+    input_mask_expanded = np.broadcast_to(input_mask_expanded, token_embeddings.shape)
+    return np.sum(token_embeddings * input_mask_expanded,
+                     1) / np.maximum(input_mask_expanded.sum(1), 1e-9)
+
+
 class TritonClient(InferenceServerClient):
     def __init__(self, host=os.getenv("TRITON_HOST", "localhost:8001")):
         super().__init__(host)
@@ -43,7 +50,7 @@ class TritonClient(InferenceServerClient):
         model_inputs = []
         for inp_conf in input_config:
             val = raw_input[inp_conf["name"].lower()]
-            if not isinstance(val, (list, str)):
+            if not isinstance(val, (list, tuple)):
                 val = [val]
 
             val_ar = np.array(val).astype(triton_to_np_dtype(inp_conf["datatype"]))
@@ -73,6 +80,9 @@ class TritonClient(InferenceServerClient):
                         outputs=model_outputs)
 
         res = {out.name().lower(): resp.as_numpy(out.name()) for out in model_outputs}
+        if "embeddings" in res and "attention_mask" in res:
+            res["embeddings"] = mean_pooling(res["embeddings"],
+                                             res["attention_mask"])
         if to_list:
             res = {k: v.tolist() for k, v in res.items()}
         return res

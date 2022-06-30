@@ -41,10 +41,22 @@ def test_model_details(client, model_name):
     [
         (
             "sentence_similarity_model",
-            {"text": ["Sentence one", "and another sentence",
-                      "more coming now", "and a last one"]},
-            dict(embeddings=(2, 5, 768), attention_mask=(2, 5)),
-        )
+            {
+                "text": [
+                    "Скажите, а сколько у меня пользовтелей в этом боте щас? я просто хочу понять насколько мне нужно переходить на платную версию",
+                    "Где посмотреть список пользователей бота?",
+                    "Как узнать количество людей, которые открыли, стартовали бота",
+                    'список пользователь\nпользователей\nСсылка на список подписчиков (URL)',
+                    "Здравствуйте! А где сменить пароль?",
+                    "Как поменять пароль от личного кабинета?",
+                    "Можно ли изменить пароль личного кабинета",
+                    "здравствуйте можно ли как то с одного квеста перенести часть компонентов в другой, при этом не создавая заново все?",
+                ]
+            },
+            dict(embeddings=(8, 768), attention_mask=(8, 34)),
+        ),
+        ("sentence_similarity_model", {"text": "Just a single text sentence"},
+         dict(embeddings=(1, 768), attention_mask=(1, 7)))
     ],
 )
 def test_models_predict(client, model_name, request_body, expected_output):
@@ -73,17 +85,19 @@ def test_models_predict(client, model_name, request_body, expected_output):
         )
     ],
 )
-def test_add_vectors(client, data_name, request_body, expected_output,
-                     tmp_path):
+def test_add_vectors(
+    client, data_name, request_body, expected_output, tmp_path
+):
     os.setenv("VECTOR_STORAGE", tmp_path)
     resp = client.post(f"/embeddings/{data_name}", json=request_body)
     assert resp.status_code == 200, resp.content
     assert resp.json() == expected_output
 
     top_k = 2
-    search_resp = client.post(f"/embeddings/{data_name}/search",
-                              json=request_body | dict(top_k=top_k))
+    search_resp = client.post(
+        f"/embeddings/{data_name}/search",
+        json=request_body | dict(top_k=top_k),
+    )
     assert search_resp.status_code == 200, search_resp.content
     for one in search_resp.json():
         assert len(one) == top_k
-

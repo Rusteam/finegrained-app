@@ -58,7 +58,7 @@ async def run_inference(model_name: str, request_body: InferRequest):
     assert (
         request_body.image or request_body.text
     ), "Either text or image have to be sent as payload"
-    return triton.predict(model_name, request_body.__dict__)
+    return triton.predict(model_name, request_body.dict())
 
 
 def _make_vector_path(data_name: str) -> str:
@@ -67,18 +67,20 @@ def _make_vector_path(data_name: str) -> str:
 
 
 @app.post("/embeddings/{data_name}")
-async def add_vectors(
-    data_name: str, request_body: EmbedRequest
-):
-    res = sim.index(vectors=request_body.features,
-              data=request_body.data,
-              dest=_make_vector_path(data_name))
+async def add_vectors(data_name: str, request_body: EmbedRequest):
+    res = sim.index(
+        vectors=request_body.features,
+        data=request_body.data,
+        dest=_make_vector_path(data_name),
+    )
     return res
 
 
 @app.post("/embeddings/{data_name}/search")
 async def search_similar(data_name: str, request_body: SearchRequest):
-    res = sim.query_vectors(index_file=_make_vector_path(data_name),
-                            vectors=request_body.features,
-                            top_k=request_body.top_k)
+    res = sim.query_vectors(
+        index_file=_make_vector_path(data_name),
+        vectors=request_body.features,
+        top_k=request_body.top_k,
+    )
     return res

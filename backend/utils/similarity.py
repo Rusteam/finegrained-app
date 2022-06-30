@@ -80,7 +80,7 @@ class SimilaritySearch:
 
     def _prepare_output(self, I: np.ndarray, D: np.ndarray, data):
         results = [
-            [data[i] | {"distance": float(p)} for i, p in zip(labels, probs)]
+            [data[i] | {"similarity": float(p)} for i, p in zip(labels, probs)]
             for labels, probs in zip(I, D)
         ]
         return results
