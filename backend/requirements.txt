@@ -1,0 +1,8 @@
+faiss_cpu==1.7.2
+fastapi==0.78.0
+numpy==1.23.0
+Pillow==9.1.1
+pydantic==1.9.1
+pytest==7.1.2
+tritonclient[grpc]==2.22.4
+uvicorn[standard]==0.18.2

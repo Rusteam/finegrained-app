@@ -1,5 +1,7 @@
 """Connect to triton server nad perform inference
 """
+import os
+
 import numpy as np
 from tritonclient.utils import np_to_triton_dtype, triton_to_np_dtype
 from typing import List
@@ -16,7 +18,7 @@ def calc_num_batches(data_size: int, batch_size: int) -> int:
 
 
 class TritonClient(InferenceServerClient):
-    def __init__(self, host="localhost:8001"):
+    def __init__(self, host=os.getenv("TRITON_HOST", "localhost:8001")):
         super().__init__(host)
 
     def list_models(self):

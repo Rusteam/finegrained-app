@@ -10,7 +10,7 @@ from typing import List, Union, Tuple
 import faiss
 import numpy as np
 
-from .triton import TritonClient
+from backend.utils.triton import TritonClient
 
 
 INPUT_TYPE = Union[str, np.ndarray]

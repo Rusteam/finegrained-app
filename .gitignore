@@ -1,4 +1,8 @@
+# system
 .idea/
+__pycache__
+
+# data and models
 /models
 *.faiss
 *.json

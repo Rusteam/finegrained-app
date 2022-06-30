@@ -4,9 +4,9 @@ services:
       dockerfile: Triton.dockerfile
       context: .
     image: triton-server:22.05-py3
+    container_name: triton
     volumes:
       - ./models/triton:/models
-#      - ./py39-transformers.tar.gz:/opt/tritonserver/backends/python/py39-transformers.tar.gz
     ports:
       - 8000:8000
       - 8001:8001
@@ -18,3 +18,17 @@ services:
       --strict-model-config=false
       --model-control-mode=explicit
       --load-model=*
+
+  backend:
+    build:
+      dockerfile: Backend.dockerfile
+      context: .
+    image: finegrained-app-backend:0.1
+    container_name: fg-backend
+    environment:
+      - VECTOR_STORAGE=/data/vectors
+      - TRITON_HOST=triton:8001
+    volumes:
+      - ./data/vectors:/data/vectors
+    ports:
+      - 8010:8000

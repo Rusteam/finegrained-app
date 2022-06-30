@@ -9,9 +9,8 @@ from typing import Optional, Union, List
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from .image_utils import decode_base64_image
-from .similarity import SimilaritySearch
-from .triton import TritonClient
+from ..utils.similarity import SimilaritySearch
+from ..utils.triton import TritonClient
 
 
 REQUEST_TYPE = Union[str, List[str]]
@@ -21,9 +20,11 @@ class InferRequest(BaseModel):
     text: Optional[REQUEST_TYPE] = None
     image: Optional[REQUEST_TYPE] = None
 
+
 class EmbedRequest(BaseModel):
     features: List[List[float]]
     data: List[dict]
+
 
 class SearchRequest(BaseModel):
     features: List[List[float]]

@@ -1,10 +1,11 @@
-import json
+import os
+
 import numpy as np
 
 import pytest
 from fastapi.testclient import TestClient
 
-from ..routes import app
+from backend.app.routes import app
 
 
 @pytest.fixture(scope="module")
@@ -72,7 +73,9 @@ def test_models_predict(client, model_name, request_body, expected_output):
         )
     ],
 )
-def test_add_vectors(client, data_name, request_body, expected_output):
+def test_add_vectors(client, data_name, request_body, expected_output,
+                     tmp_path):
+    os.setenv("VECTOR_STORAGE", tmp_path)
     resp = client.post(f"/embeddings/{data_name}", json=request_body)
     assert resp.status_code == 200, resp.content
     assert resp.json() == expected_output
