@@ -7,4 +7,6 @@ WORKDIR /app
 COPY frontend ./frontend
 COPY app.py .
 
+EXPOSE 7860
+
 CMD ["python", "app.py"]

@@ -120,10 +120,9 @@ def chatbot():
             outputs=[chatbot, text_input],
         )
 
-    if os.getenv("GRADIO_DEBUG", True):
-        launch_kwargs = dict(debug=True, inbrowser=True)
-    else:
-        launch_kwargs = dict(
-            debug=False, inbrowser=False, auth=_load_credentials(), share=True
-        )
-    demo.launch(**launch_kwargs)
+    launch_kwargs = dict(
+        debug=True, inbrowser=False, auth=_load_credentials(),
+        server_name="0.0.0.0",
+    )
+    links = demo.launch(**launch_kwargs)
+    print(links)

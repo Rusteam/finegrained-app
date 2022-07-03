@@ -8,8 +8,10 @@ RUN /opt/miniconda/bin/conda install conda-pack
 
 RUN /opt/miniconda/bin/conda create -n py39 -y -q python=3.9
 RUN exec bash
+
 RUN bash -c /opt/miniconda/bin/conda activate py39
-RUN pip install transformers[torch]
+RUN pip install torch --extra-index-url https://download.pytorch.org/whl/cpu
+RUN pip install transformers
 
 RUN /opt/miniconda/bin/conda-pack \
     -p /opt/miniconda/envs/py39 \

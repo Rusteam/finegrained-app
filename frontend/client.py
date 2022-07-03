@@ -18,7 +18,9 @@ class Client:
         url = urljoin(self.url, path)
         headers = kwargs.pop("headers", {}) | {"content-type": "application/json"}
         data = json.dumps(kwargs.pop("data", {}))
-        request = requests.request(method, url, headers=headers, data=data, **kwargs)
+        request = requests.request(method, url, headers=headers, data=data,
+                                    timeout=60 if bool(data) else 5,
+                                   **kwargs)
         request.raise_for_status()
         return request.json()
 
