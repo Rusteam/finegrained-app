@@ -6,3 +6,10 @@ __pycache__
 /models
 *.faiss
 *.json
+
+# archives
+*.tar.gz
+*.bz2
+
+# secrets
+*.env

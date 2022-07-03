@@ -1,6 +1,8 @@
 """A Gradio app for searching similar texts.
 """
-from typing import Tuple
+from pathlib import Path
+
+from typing import Tuple, List
 
 import os
 
@@ -45,14 +47,14 @@ def _embed_text(file, text_field, model_name):
 
 
 def _get_chatbot_answer(text_input, history, model_name):
-    predictions = client.predict(model_name, {"text": text_input})
-    top_sim = client.search_similar(
-        DATA_NAME, predictions["embeddings"], top_k=1
+    top_sim = client.predict_and_search(
+        model_name, DATA_NAME, data={"text": text_input}, top_k=1
     )
 
-    top_match = top_sim[0][0]
+    top_match = top_sim["results"][0][0]
     match_score = top_match["similarity"]
-    reply = f"> {top_match['question']}  >>> {top_match['answer']} ({match_score:.2f})"
+    reply = f"""> {top_match['question']}  
+    >>>{top_match['answer']} ({match_score:.2f})"""
     history.append((text_input, reply))
 
     return history, ""
@@ -121,8 +123,14 @@ def chatbot():
         )
 
     launch_kwargs = dict(
-        debug=True, inbrowser=False, auth=_load_credentials(),
+        debug=True,
+        inbrowser=False,
+        auth=_load_credentials(),
         server_name="0.0.0.0",
     )
     links = demo.launch(**launch_kwargs)
     print(links)
+
+
+if __name__ == "__main__":
+    chatbot()

@@ -6,8 +6,7 @@ import numpy as np
 from tritonclient.utils import np_to_triton_dtype, triton_to_np_dtype
 from typing import List
 
-from tritonclient.grpc import InferenceServerClient, InferInput, \
-    InferRequestedOutput
+from tritonclient.grpc import InferenceServerClient, InferInput, InferRequestedOutput
 
 
 def calc_num_batches(data_size: int, batch_size: int) -> int:
@@ -20,8 +19,9 @@ def calc_num_batches(data_size: int, batch_size: int) -> int:
 def mean_pooling(token_embeddings, attention_mask):
     input_mask_expanded = attention_mask[..., np.newaxis].astype(np.float32)
     input_mask_expanded = np.broadcast_to(input_mask_expanded, token_embeddings.shape)
-    return np.sum(token_embeddings * input_mask_expanded,
-                     1) / np.maximum(input_mask_expanded.sum(1), 1e-9)
+    return np.sum(token_embeddings * input_mask_expanded, 1) / np.maximum(
+        input_mask_expanded.sum(1), 1e-9
+    )
 
 
 class TritonClient(InferenceServerClient):
@@ -30,12 +30,11 @@ class TritonClient(InferenceServerClient):
 
     def list_models(self):
         repo_index = self.get_model_repository_index()
-        models = [{
-            "name": m.name,
-            "version": m.version,
-            "status": m.state
-        } for m in repo_index.models
-            if m.name.endswith("model")]
+        models = [
+            {"name": m.name, "version": m.version, "status": m.state}
+            for m in repo_index.models
+            if m.name.endswith("model")
+        ]
         return models
 
     def get_model_details(self, model_name: str) -> dict:
@@ -57,8 +56,7 @@ class TritonClient(InferenceServerClient):
             if val_ar.ndim == 1 and len(inp_conf["shape"]) == 2:
                 val_ar = val_ar[..., np.newaxis]
 
-            inp = InferInput(inp_conf["name"], val_ar.shape,
-                             inp_conf["datatype"])
+            inp = InferInput(inp_conf["name"], val_ar.shape, inp_conf["datatype"])
             inp.set_data_from_numpy(val_ar)
 
             model_inputs.append(inp)
@@ -72,17 +70,16 @@ class TritonClient(InferenceServerClient):
         meta = self.get_model_details(model_name)
         model_outputs = self._parse_outputs(meta["outputs"])
 
-        model_inputs = self._parse_inputs(meta["inputs"],
-                                          raw_input,
-                                          )
+        model_inputs = self._parse_inputs(
+            meta["inputs"],
+            raw_input,
+        )
 
-        resp = self.infer(model_name, model_inputs,
-                        outputs=model_outputs)
+        resp = self.infer(model_name, model_inputs, outputs=model_outputs)
 
         res = {out.name().lower(): resp.as_numpy(out.name()) for out in model_outputs}
         if "embeddings" in res and "attention_mask" in res:
-            res["embeddings"] = mean_pooling(res["embeddings"],
-                                             res["attention_mask"])
+            res["embeddings"] = mean_pooling(res["embeddings"], res["attention_mask"])
         if to_list:
             res = {k: v.tolist() for k, v in res.items()}
         return res
@@ -94,9 +91,7 @@ class TritonClient(InferenceServerClient):
 
     @staticmethod
     def _parse_list(meta):
-        return [{
-            "name": inp.name,
-            "shape": inp.shape,
-            "datatype": inp.datatype
-        } for inp in meta]
-
+        return [
+            {"name": inp.name, "shape": inp.shape, "datatype": inp.datatype}
+            for inp in meta
+        ]

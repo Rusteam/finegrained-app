@@ -23,23 +23,23 @@ def write_lines(data: List[str], write_path: Path) -> None:
 
 
 def read_lines(src_file: Path) -> List[str]:
-    data = src_file.read_text().strip().split('\n')
+    data = src_file.read_text().strip().split("\n")
     return data
 
 
 def write_json(data, file):
-    with open(file, 'w') as f:
+    with open(file, "w") as f:
         json.dump(data, f)
 
 
 def read_json(file):
-    with open(file, 'r') as f:
+    with open(file, "r") as f:
         data = json.load(f)
     return data
 
 
 def to_float(sample: np.ndarray) -> List[np.ndarray]:
-    sample_float = (sample / 255.).astype(np.float32)
+    sample_float = (sample / 255.0).astype(np.float32)
     return sample_float
 
 
