@@ -25,7 +25,7 @@ def encode_image_base64(image: Image) -> str:
     image.save(img_file, format="JPEG")
     img_bytes = img_file.getvalue()
     img_b64 = base64.b64encode(img_bytes)
-    return img_b64
+    return img_b64.decode()
 
 
 def load_base64_image(filepath: str) -> str:

@@ -3,15 +3,23 @@ import os
 import numpy as np
 
 import pytest
+from PIL import Image
 from fastapi.testclient import TestClient
 
 from backend.app.routes import app
+from backend.utils.image_utils import encode_image_base64
 
 
 @pytest.fixture(scope="module")
 def client():
     client = TestClient(app)
     return client
+
+
+def image_base64(x):
+    img = np.random.randint(0, 255, size=(x + 19, x - 19, 3), dtype=np.uint8)
+    b64 = encode_image_base64(Image.fromarray(img))
+    return b64
 
 
 def test_hello(client):
@@ -30,15 +38,29 @@ def test_list_models(client):
     assert isinstance(parsed[0], dict)
 
 
-@pytest.mark.parametrize("model_name", ["sentence_similarity_model"])
+@pytest.mark.parametrize(
+    "model_name", ["sentence_similarity_model", "cavist_classification_model"]
+)
 def test_model_details(client, model_name):
     resp = client.get(f"/models/{model_name}")
-    assert resp.status_code == 200, resp.content
+    assert resp.status_code == 200, resp.content.decode()
 
 
 @pytest.mark.parametrize(
-    "model_name,request_body,expected_output",
+    "model_name,request_body,params,expected_output",
     [
+        (
+            "cavist_classification_model",
+            {"image": image_base64(280)},
+            dict(top_k=3),
+            dict(class_probs=(1, 3)),
+        ),
+        (
+            "cavist_classification_model",
+            {"image": [image_base64(270), image_base64(301)]},
+            dict(top_k=5),
+            dict(class_probs=(2, 5)),
+        ),
         (
             "sentence_similarity_model",
             {
@@ -47,7 +69,8 @@ def test_model_details(client, model_name):
                     "щас? я просто хочу понять насколько мне нужно "
                     "переходить на платную версию",
                     "Где посмотреть список пользователей бота?",
-                    "Как узнать количество людей, которые открыли, " "стартовали бота",
+                    "Как узнать количество людей, которые открыли, "
+                    "стартовали бота",
                     "список пользователь\nпользователей\nСсылка на "
                     "список подписчиков (URL)",
                     "Здравствуйте! А где сменить пароль?",
@@ -58,17 +81,19 @@ def test_model_details(client, model_name):
                     "создавая заново все?",
                 ]
             },
+            {},
             dict(embeddings=(8, 768), attention_mask=(8, 34)),
         ),
         (
             "sentence_similarity_model",
             {"text": "Just a single text sentence"},
+            {},
             dict(embeddings=(1, 768), attention_mask=(1, 7)),
         ),
     ],
 )
-def test_models_predict(client, model_name, request_body, expected_output):
-    resp = client.post(f"/models/{model_name}/predict", json=request_body)
+def test_models_predict(client, model_name, request_body, params, expected_output):
+    resp = client.post(f"/models/{model_name}/predict", json=request_body, params=params)
     assert resp.status_code == 200, resp.content.decode()
 
     out = resp.json()
@@ -93,7 +118,9 @@ def test_models_predict(client, model_name, request_body, expected_output):
         )
     ],
 )
-def test_add_vectors(client, data_name, request_body, expected_output, tmp_path):
+def test_add_vectors(
+    client, data_name, request_body, expected_output, tmp_path
+):
     os.setenv("VECTOR_STORAGE", tmp_path)
     resp = client.post(f"/embeddings/{data_name}", json=request_body)
     assert resp.status_code == 200, resp.content
@@ -117,19 +144,25 @@ def vector_db(client):
         "хочу понять насколько мне нужно переходить на платную версию",
         "Где посмотреть список пользователей бота?",
         "Как узнать количество людей, которые открыли, стартовали бота",
-        "список пользователь\nпользователей\nСсылка на список подписчиков (" "URL)",
+        "список пользователь\nпользователей\nСсылка на список подписчиков ("
+        "URL)",
         "Здравствуйте! А где сменить пароль?",
         "Как поменять пароль от личного кабинета?",
         "Можно ли изменить пароль личного кабинета",
         "здравствуйте можно ли как то с одного квеста перенести часть "
         "компонентов в другой, при этом не создавая заново все?",
     ]
-    resp = client.post("/models/sentence_similarity_model/predict", json={"text": db})
+    resp = client.post(
+        "/models/sentence_similarity_model/predict", json={"text": db}
+    )
     _ = client.post(
         f"/embeddings/{db_name}",
         json={
             "vectors": resp.json()["embeddings"],
-            "data": [dict(index=i) for i in range(len(db))],
+            "data": [
+                dict(index=i, url="http://url.com", other=None)
+                for i in range(len(db))
+            ],
         },
     )
     return db_name
@@ -144,7 +177,9 @@ def vector_db(client):
         ("sentence_similarity_model", ["List of", "short queries"], 4, True),
     ],
 )
-def test_models_predict_and_search(client, vector_db, model_name, text, top_k, squeeze):
+def test_models_predict_and_search(
+    client, vector_db, model_name, text, top_k, squeeze
+):
     resp = client.post(
         f"/models/{model_name}/search/{vector_db}",
         params=dict(top_k=top_k, squeeze=squeeze),

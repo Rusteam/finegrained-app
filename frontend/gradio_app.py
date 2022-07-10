@@ -41,7 +41,7 @@ def _embed_text(file, text_field, model_name):
     embeddings = np.vstack(embeddings).tolist()
 
     # index data
-    resp = client.index(DATA_NAME, embeddings, data.to_dict("records"))
+    resp = client.index(DATA_NAME, embeddings, data.fillna("").to_dict("records"))
 
     return resp
 

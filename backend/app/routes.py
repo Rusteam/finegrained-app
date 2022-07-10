@@ -1,5 +1,6 @@
+import dataclasses
+import numpy as np
 import shlex
-
 from pathlib import Path
 
 import os
@@ -7,8 +8,10 @@ import os
 from typing import Optional, Union, List
 
 from fastapi import FastAPI
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, validator, root_validator
+from pydantic.dataclasses import dataclass
 
+from ..utils.image_utils import decode_base64_image
 from ..utils.similarity import SimilaritySearch
 from ..utils.triton import TritonClient
 
@@ -16,9 +19,46 @@ from ..utils.triton import TritonClient
 REQUEST_TYPE = Union[str, List[str]]
 
 
+def _post_init_image(image: REQUEST_TYPE) -> np.ndarray:
+    if image is not None:
+        images = image
+        if isinstance(images, str):
+            images = [images]
+        images = map(decode_base64_image, images)
+        return list(images)
+    else:
+        return None
+
+
+def _post_init_text(text: REQUEST_TYPE) -> np.ndarray:
+    if text is not None:
+        texts = text
+        if isinstance(texts, str):
+            texts = [texts]
+        return np.array(texts)[..., np.newaxis]
+    else:
+        return None
+
+
 class InferRequest(BaseModel):
-    text: Optional[REQUEST_TYPE] = None
-    image: Optional[REQUEST_TYPE] = None
+    text: Optional[REQUEST_TYPE] = Field(default=None)
+    image: Optional[REQUEST_TYPE] = Field(default=None)
+
+    @validator("image")
+    def decode_base64_image(cls, v):
+        return _post_init_image(v)
+
+    @validator("text")
+    def stack_texts_array(cls, v):
+        return _post_init_text(v)
+
+    @root_validator
+    def not_all_none(cls, values):
+        assert any([
+            values.get(v) is not None
+            for v in ["text", "image"]
+        ]), "Either text or image have to be sent as payload"
+        return values
 
 
 class EmbedRequest(BaseModel):
@@ -57,12 +97,9 @@ async def model_config(model_name: str):
 
 
 @app.post("/models/{model_name}/predict")
-async def predict(model_name: str, request_body: InferRequest):
+async def predict(model_name: str, request_body: InferRequest, top_k: int = 0):
     """Run model inference with given data."""
-    assert (
-        request_body.image or request_body.text
-    ), "Either text or image have to be sent as payload"
-    return triton.predict(model_name, request_body.dict())
+    return triton.predict(model_name, request_body.dict(), top_k=top_k)
 
 
 @app.post("/models/{model_name}/search/{data_name}")
