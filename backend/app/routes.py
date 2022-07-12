@@ -99,7 +99,8 @@ async def model_config(model_name: str):
 @app.post("/models/{model_name}/predict")
 async def predict(model_name: str, request_body: InferRequest, top_k: int = 0):
     """Run model inference with given data."""
-    return triton.predict(model_name, request_body.dict(), top_k=top_k)
+    predicted = triton.predict(model_name, request_body.dict(), top_k=top_k)
+    return {"results": predicted}
 
 
 @app.post("/models/{model_name}/search/{data_name}")

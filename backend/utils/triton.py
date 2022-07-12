@@ -78,13 +78,15 @@ class TritonClient(InferenceServerClient):
     def _parse_inputs(
         self, input_config, raw_input, batch_index
     ) -> List[InferInput]:
-        start, end = batch_index
+        start, end, squeeze = batch_index
 
         model_inputs = []
         for inp_conf in input_config:
             val = raw_input[inp_conf["name"].lower()][start:end]
             if not isinstance(val, np.ndarray):
                 val = np.array(val)
+            if squeeze:
+                val = val.squeeze(0)
 
             data_type = inp_conf["datatype"]
             val_ar = val.astype(triton_to_np_dtype(data_type))
@@ -119,13 +121,19 @@ class TritonClient(InferenceServerClient):
         batch_size = self._get_batch_size(model_name)
         input_len = max(len(v) for v in raw_input.values() if v is not None)
 
+        if batch_size == 0:
+            batch_size += 1
+            squeeze = True
+        else:
+            squeeze = False
+
         outputs = [
             self._predict_batch(
                 model_name,
                 raw_input,
                 meta["inputs"],
                 model_outputs,
-                batch=(i, i + batch_size),
+                batch=(i, i + batch_size, squeeze),
             )
             for i in range(0, input_len, batch_size)
         ]
@@ -141,6 +149,7 @@ class TritonClient(InferenceServerClient):
 
         if kwargs.get("top_k", 0) > 0:
             res = {k: parse_classes(v) for k, v in res.items()}
+
         return res
 
     def _predict_batch(

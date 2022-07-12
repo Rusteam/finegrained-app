@@ -7,7 +7,7 @@ from PIL import Image
 from fastapi.testclient import TestClient
 
 from backend.app.routes import app
-from backend.utils.image_utils import encode_image_base64
+from backend.utils.image_utils import encode_image_base64, load_base64_image
 
 
 @pytest.fixture(scope="module")
@@ -19,6 +19,8 @@ def client():
 def image_base64(x):
     img = np.random.randint(0, 255, size=(x + 19, x - 19, 3), dtype=np.uint8)
     b64 = encode_image_base64(Image.fromarray(img))
+    # b64 = load_base64_image("/mnt/finegrained/data/cavist/external/KB/20220521_190902_004.jpg")
+    # b64 = load_base64_image("/mnt/finegrained/data/cavist/external/KB/20201103_195537.jpg")
     return b64
 
 
@@ -49,6 +51,7 @@ def test_model_details(client, model_name):
 @pytest.mark.parametrize(
     "model_name,request_body,params,expected_output",
     [
+        ("cavist_detection_model", {"image": image_base64(299)}, {}, dict()),
         (
             "cavist_classification_model",
             {"image": image_base64(280)},
@@ -96,9 +99,9 @@ def test_models_predict(client, model_name, request_body, params, expected_outpu
     resp = client.post(f"/models/{model_name}/predict", json=request_body, params=params)
     assert resp.status_code == 200, resp.content.decode()
 
-    out = resp.json()
+    results = resp.json()["results"]
     for k, v in expected_output.items():
-        assert np.array(out[k]).shape == v
+        assert np.array(results[k]).shape == v
 
 
 @pytest.mark.parametrize(
