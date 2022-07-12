@@ -107,7 +107,7 @@ class TritonClient(InferenceServerClient):
     @staticmethod
     def _parse_list(meta):
         return [
-            {"name": inp.name, "shape": inp.shape, "datatype": inp.datatype}
+            {"name": inp.name, "shape": list(inp.shape), "datatype": inp.datatype}
             for inp in meta
         ]
 

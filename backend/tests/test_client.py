@@ -34,14 +34,14 @@ def test_list_models(client):
     resp = client.get("/models")
     assert resp.status_code == 200
 
-    parsed = resp.json()
+    parsed = resp.json()["results"]
     assert isinstance(parsed, list)
     assert len(parsed) > 0
     assert isinstance(parsed[0], dict)
 
 
 @pytest.mark.parametrize(
-    "model_name", ["sentence_similarity_model", "cavist_classification_model"]
+    "model_name", ["sentence_similarity_model", "cavist_classification_model", "cavist_detection_model"]
 )
 def test_model_details(client, model_name):
     resp = client.get(f"/models/{model_name}")
@@ -124,10 +124,10 @@ def test_models_predict(client, model_name, request_body, params, expected_outpu
 def test_add_vectors(
     client, data_name, request_body, expected_output, tmp_path
 ):
-    os.setenv("VECTOR_STORAGE", tmp_path)
+    os.environ["VECTOR_STORAGE"] = str(tmp_path)
     resp = client.post(f"/embeddings/{data_name}", json=request_body)
     assert resp.status_code == 200, resp.content
-    assert resp.json() == expected_output
+    assert resp.json()["results"] == expected_output
 
     top_k = 2
     search_resp = client.post(
@@ -135,7 +135,7 @@ def test_add_vectors(
         json=request_body | dict(top_k=top_k),
     )
     assert search_resp.status_code == 200, search_resp.content
-    for one in search_resp.json():
+    for one in search_resp.json()["results"]:
         assert len(one) == top_k
 
 
@@ -157,11 +157,11 @@ def vector_db(client):
     ]
     resp = client.post(
         "/models/sentence_similarity_model/predict", json={"text": db}
-    )
+    ).json()["results"]
     _ = client.post(
         f"/embeddings/{db_name}",
         json={
-            "vectors": resp.json()["embeddings"],
+            "vectors": resp["embeddings"],
             "data": [
                 dict(index=i, url="http://url.com", other=None)
                 for i in range(len(db))

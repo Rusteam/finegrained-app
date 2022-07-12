@@ -24,8 +24,8 @@ services:
 
   backend:
     build:
-      dockerfile: Backend.dockerfile
-      context: .
+      dockerfile: backend/Dockerfile
+      context: backend
     image: finegrained-app/backend:0.1
     container_name: fg-backend
     restart: on-failure

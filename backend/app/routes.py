@@ -87,13 +87,13 @@ async def hello():
 @app.get("/models")
 async def list_models():
     """List models available for inference."""
-    return triton.list_models()
+    return {"results": triton.list_models()}
 
 
 @app.get("/models/{model_name}")
 async def model_config(model_name: str):
     """Find out model input and output scheme."""
-    return triton.get_model_details(model_name)
+    return {"results": triton.get_model_details(model_name)}
 
 
 @app.post("/models/{model_name}/predict")
@@ -112,9 +112,6 @@ async def predict_and_search(
     squeeze: bool = False,
 ):
     """Extract features from raw data and compare against database."""
-    assert (
-        request_body.image or request_body.text
-    ), "Either text or image have to be sent as payload"
     prediction = triton.predict(model_name, request_body.dict())
     res = sim.query_vectors(
         index_file=_make_vector_path(data_name),
@@ -150,7 +147,7 @@ async def index_data(data_name: str, request_body: EmbedRequest):
         data=request_body.data,
         dest=_make_vector_path(data_name),
     )
-    return res
+    return {"results": res}
 
 
 @app.post("/embeddings/{data_name}/search")
@@ -161,4 +158,4 @@ async def search_similar(data_name: str, request_body: SearchRequest):
         vectors=request_body.vectors,
         top_k=request_body.top_k,
     )
-    return res
+    return {"results": res}
