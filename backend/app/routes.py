@@ -169,7 +169,7 @@ async def list_pipelines():
 
 
 @app.get("/pipelines/{pipeline}")
-async def get_pipeline_config(pipeline: str):
+async def pipeline_config(pipeline: str):
     one = pipe(pipeline)
     return dict(results=one.get_config())
 

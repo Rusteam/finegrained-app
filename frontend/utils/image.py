@@ -65,7 +65,7 @@ def draw_bounding_box_on_image(image,
               width=thickness,
               fill=color)
     try:
-        font = ImageFont.truetype('arial.ttf', 24)
+        font = ImageFont.truetype('arial.ttf', 36)
     except IOError:
         font = ImageFont.load_default()
 

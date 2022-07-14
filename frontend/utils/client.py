@@ -74,3 +74,13 @@ class Client:
     def list_embeddings(self):
         embeddings = self._make_request("get", "/embeddings")
         return embeddings
+
+    def list_pipelines(self):
+        pipe_names = self._make_request("get", "/pipelines")
+        return pipe_names
+
+    def run_pipeline(self, pipeline_name: str, data, **kwargs):
+        out = self._make_request(
+            "post", f"/pipelines/{pipeline_name}/predict", data=data, **kwargs
+        )
+        return out
