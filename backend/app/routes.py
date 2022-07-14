@@ -7,13 +7,14 @@ import os
 
 from typing import Optional, Union, List
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from pydantic import BaseModel, Field, validator, root_validator
 from pydantic.dataclasses import dataclass
 
 from ..utils.image_utils import decode_base64_image
 from ..utils.similarity import SimilaritySearch
 from ..utils.triton import TritonClient
+from ..utils.pipelines import Pipelines
 
 
 REQUEST_TYPE = Union[str, List[str]]
@@ -54,10 +55,9 @@ class InferRequest(BaseModel):
 
     @root_validator
     def not_all_none(cls, values):
-        assert any([
-            values.get(v) is not None
-            for v in ["text", "image"]
-        ]), "Either text or image have to be sent as payload"
+        assert any(
+            [values.get(v) is not None for v in ["text", "image"]]
+        ), "Either text or image have to be sent as payload"
         return values
 
 
@@ -74,6 +74,7 @@ class SearchRequest(BaseModel):
 app = FastAPI()
 triton = TritonClient()
 sim = SimilaritySearch()
+pipe = Pipelines(triton)
 vectors_path = Path(os.getenv("VECTOR_STORAGE", "./vectors"))
 vectors_path.mkdir(parents=True, exist_ok=True)
 
@@ -159,3 +160,27 @@ async def search_similar(data_name: str, request_body: SearchRequest):
         top_k=request_body.top_k,
     )
     return {"results": res}
+
+
+@app.get("/pipelines")
+async def list_pipelines():
+    """List available model pipelines."""
+    return dict(results=pipe.list())
+
+
+@app.get("/pipelines/{pipeline}")
+async def get_pipeline_config(pipeline: str):
+    one = pipe(pipeline)
+    return dict(results=one.get_config())
+
+
+@app.post("/pipelines/{pipeline}/predict")
+async def run_pipeline(
+    pipeline: str,
+    request_body: InferRequest,
+    model: List[str] = Query(default=...),
+):
+    """Run inference pipeline with requested models."""
+    infer_pipe = pipe(pipeline, model_names=model)
+    results = infer_pipe.run(request_body.dict())
+    return dict(results=results)

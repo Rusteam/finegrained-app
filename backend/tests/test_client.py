@@ -1,4 +1,6 @@
 import os
+from typing import List
+from pathlib import Path
 
 import numpy as np
 
@@ -10,18 +12,110 @@ from backend.app.routes import app
 from backend.utils.image_utils import encode_image_base64, load_base64_image
 
 
+def dummy_image_base64(x):
+    img = np.random.randint(0, 255, size=(x + 19, x - 19, 3), dtype=np.uint8)
+    b64 = encode_image_base64(Image.fromarray(img))
+    return b64
+
+
+def real_base64_image():
+    path = Path(__file__).parent / "images/img_3b.jpg"
+    b64 = load_base64_image(str(path))
+    return b64
+
+
+MODELS = [
+    dict(
+        name="sentence_similarity_model",
+        # request: (request body, request params, expected output shape)
+        requests=[
+            (
+                {
+                    "text": [  # many texts with differing lengths
+                        "Скажите, а сколько у меня пользовтелей в этом боте "
+                        "щас? я просто хочу понять насколько мне нужно "
+                        "переходить на платную версию",
+                        "Где посмотреть список пользователей бота?",
+                        "Как узнать количество людей, которые открыли, "
+                        "стартовали бота",
+                        "список пользователь\nпользователей\nСсылка на "
+                        "список подписчиков (URL)",
+                        "Здравствуйте! А где сменить пароль?",
+                        "Как поменять пароль от личного кабинета?",
+                        "Можно ли изменить пароль личного кабинета",
+                        "здравствуйте можно ли как то с одного квеста "
+                        "перенести часть компонентов в другой, при этом не "
+                        "создавая заново все?",
+                    ]
+                },
+                {},
+                dict(embeddings=(8, 768), attention_mask=(8, 34)),
+            ),
+            (
+                {"text": "Just a single text sentence"},
+                {},
+                dict(embeddings=(1, 768), attention_mask=(1, 7)),
+            ),
+        ],
+    ),
+    dict(
+        name="image_classification_model",
+        requests=[
+            (
+                {"image": [dummy_image_base64(270), dummy_image_base64(301)]},
+                dict(top_k=5),
+                dict(class_probs=(2, 5)),
+            ),
+            (
+                {"image": dummy_image_base64(280)},
+                dict(top_k=3),
+                dict(class_probs=(1, 3)),
+            ),
+        ],
+    ),
+    dict(
+        name="object_detection_model",
+        requests=[
+            (
+                {"image": real_base64_image()},
+                {},
+                dict(boxes=(8, 4), scores=(8, 1), class_probs=(8, 1)),
+            ),
+        ],
+    ),
+]
+PIPELINES = [
+    dict(
+        name="object-recognition",
+        config=dict(model_names=["detector", "classifier"]),
+        requests=[
+            (
+                {"image": real_base64_image()},
+                dict(
+                    model=[
+                        "object_detection_model",
+                        "image_classification_model",
+                    ]
+                ),
+                dict(n=8),
+            )
+        ],
+    )
+]
+
+
+def _get_names(values: List[dict]) -> List[str]:
+    return [v["name"] for v in values]
+
+
+def _get_requests(values: List[dict]):
+    return [[m["name"]] + list(r) for m in values for r in m["requests"]]
+
+
 @pytest.fixture(scope="module")
 def client():
     client = TestClient(app)
     return client
-
-
-def image_base64(x):
-    img = np.random.randint(0, 255, size=(x + 19, x - 19, 3), dtype=np.uint8)
-    b64 = encode_image_base64(Image.fromarray(img))
-    # b64 = load_base64_image("/mnt/finegrained/data/cavist/external/KB/20220521_190902_004.jpg")
-    # b64 = load_base64_image("/mnt/finegrained/data/cavist/external/KB/20201103_195537.jpg")
-    return b64
 
 
 def test_hello(client):
@@ -34,15 +128,15 @@ def test_list_models(client):
     resp = client.get("/models")
     assert resp.status_code == 200
 
-    parsed = resp.json()["results"]
-    assert isinstance(parsed, list)
-    assert len(parsed) > 0
-    assert isinstance(parsed[0], dict)
+    models = resp.json()["results"]
+    assert isinstance(models, list)
+    assert len(models) == len(MODELS)
+    actual_names = [m["name"] for m in models]
+    for exp in MODELS:
+        assert exp["name"] in actual_names
 
 
-@pytest.mark.parametrize(
-    "model_name", ["sentence_similarity_model", "cavist_classification_model", "cavist_detection_model"]
-)
+@pytest.mark.parametrize("model_name", _get_names(MODELS))
 def test_model_details(client, model_name):
     resp = client.get(f"/models/{model_name}")
     assert resp.status_code == 200, resp.content.decode()
@@ -50,53 +144,14 @@ def test_model_details(client, model_name):
 
 @pytest.mark.parametrize(
     "model_name,request_body,params,expected_output",
-    [
-        ("cavist_detection_model", {"image": image_base64(299)}, {}, dict()),
-        (
-            "cavist_classification_model",
-            {"image": image_base64(280)},
-            dict(top_k=3),
-            dict(class_probs=(1, 3)),
-        ),
-        (
-            "cavist_classification_model",
-            {"image": [image_base64(270), image_base64(301)]},
-            dict(top_k=5),
-            dict(class_probs=(2, 5)),
-        ),
-        (
-            "sentence_similarity_model",
-            {
-                "text": [
-                    "Скажите, а сколько у меня пользовтелей в этом боте "
-                    "щас? я просто хочу понять насколько мне нужно "
-                    "переходить на платную версию",
-                    "Где посмотреть список пользователей бота?",
-                    "Как узнать количество людей, которые открыли, "
-                    "стартовали бота",
-                    "список пользователь\nпользователей\nСсылка на "
-                    "список подписчиков (URL)",
-                    "Здравствуйте! А где сменить пароль?",
-                    "Как поменять пароль от личного кабинета?",
-                    "Можно ли изменить пароль личного кабинета",
-                    "здравствуйте можно ли как то с одного квеста "
-                    "перенести часть компонентов в другой, при этом не "
-                    "создавая заново все?",
-                ]
-            },
-            {},
-            dict(embeddings=(8, 768), attention_mask=(8, 34)),
-        ),
-        (
-            "sentence_similarity_model",
-            {"text": "Just a single text sentence"},
-            {},
-            dict(embeddings=(1, 768), attention_mask=(1, 7)),
-        ),
-    ],
+    _get_requests(MODELS),
 )
-def test_models_predict(client, model_name, request_body, params, expected_output):
-    resp = client.post(f"/models/{model_name}/predict", json=request_body, params=params)
+def test_models_predict(
+    client, model_name, request_body, params, expected_output
+):
+    resp = client.post(
+        f"/models/{model_name}/predict", json=request_body, params=params
+    )
     assert resp.status_code == 200, resp.content.decode()
 
     results = resp.json()["results"]
@@ -204,3 +259,38 @@ def test_models_predict_and_search(
         for top in item:
             assert isinstance(top, dict)
             assert "index" in top
+
+
+def test_list_pipelines(client):
+    resp = client.get("/pipelines")
+    assert resp.status_code == 200
+
+    results = resp.json()["results"]
+    assert len(results) == len(PIPELINES)
+    for p in PIPELINES:
+        assert p["name"] in results
+
+
+@pytest.mark.parametrize(
+    "pipe_name,expected", [(p["name"], p["config"]) for p in PIPELINES]
+)
+def test_get_pipeline_config(client, pipe_name, expected):
+    resp = client.get(f"/pipelines/{pipe_name}")
+    assert resp.status_code == 200
+
+    results = resp.json()["results"]
+    assert results == expected
+
+
+@pytest.mark.parametrize(
+    "pipe_name,request_body,params,expected", _get_requests(PIPELINES)
+)
+def test_run_pipeline(client, pipe_name, request_body, params, expected):
+    resp = client.post(
+        f"/pipelines/{pipe_name}/predict", json=request_body, params=params
+    )
+    assert resp.status_code == 200, resp.content.decode()
+
+    results = resp.json()["results"]
+    assert len(results) == expected["n"]
+    assert all([isinstance(one, dict) for one in results])
