@@ -1,11 +1,10 @@
 FROM python:3.9.6-slim
 
-COPY frontend/requirements.txt .
+COPY requirements.txt .
 RUN pip install --no-cache -r requirements.txt
 
 WORKDIR /app
-COPY frontend ./frontend
-COPY app.py .
+COPY . .
 
 EXPOSE 7860
 

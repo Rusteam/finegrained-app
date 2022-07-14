@@ -1,8 +1,7 @@
 """A Gradio app for searching similar texts.
 """
-from pathlib import Path
 
-from typing import Tuple, List
+from typing import Tuple
 
 import os
 
@@ -10,7 +9,7 @@ import gradio as gr
 import numpy as np
 import pandas as pd
 
-from .client import Client
+from frontend.utils.client import Client
 
 
 client = Client()

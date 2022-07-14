@@ -16,7 +16,9 @@ class Client:
 
     def _make_request(self, method: str, path: str, **kwargs):
         url = urljoin(self.url, path)
-        headers = kwargs.pop("headers", {}) | {"content-type": "application/json"}
+        headers = kwargs.pop("headers", {}) | {
+            "content-type": "application/json"
+        }
         data = json.dumps(kwargs.pop("data", {}))
         request = requests.request(
             method,
@@ -27,14 +29,16 @@ class Client:
             **kwargs,
         )
         request.raise_for_status()
-        return request.json()
+        return request.json()["results"]
 
     def list_models(self):
         models = self._make_request("get", "/models")
         return [m["name"] for m in models]
 
-    def predict(self, model_name: str, data):
-        out = self._make_request("post", f"/models/{model_name}/predict", data=data)
+    def predict(self, model_name: str, data, **kwargs):
+        out = self._make_request(
+            "post", f"/models/{model_name}/predict", data=data, **kwargs
+        )
         return out
 
     def index(self, data_name: str, vectors, data):
@@ -57,7 +61,9 @@ class Client:
         )
         return resp
 
-    def predict_and_search(self, model_name: str, data_name: str, data, top_k=5):
+    def predict_and_search(
+        self, model_name: str, data_name: str, data, top_k=5
+    ):
         resp = self._make_request(
             "post",
             f"/models/{model_name}/search/{data_name}?top_k={top_k}",
