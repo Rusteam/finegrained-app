@@ -17,7 +17,7 @@ _get_max_id = lambda x: np.argmax(x)
 
 
 if image_file is not None:
-    img = Image.open(image_file.name)
+    img = Image.open(image_file)
     top_classes = client.predict(model_name=model,
                                  data={"image": encode_image_base64(img)},
                                  params=dict(top_k=5))

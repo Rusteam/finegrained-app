@@ -49,12 +49,12 @@ MODELS = [
                     ]
                 },
                 {},
-                dict(embeddings=(8, 768), attention_mask=(8, 34)),
+                dict(embeddings=(8, 768)),
             ),
             (
                 {"text": "Just a single text sentence"},
                 {},
-                dict(embeddings=(1, 768), attention_mask=(1, 7)),
+                dict(embeddings=(1, 768)),
             ),
         ],
     ),
@@ -131,6 +131,7 @@ def test_list_models(client):
     models = resp.json()["results"]
     assert isinstance(models, list)
     assert len(models) == len(MODELS)
+    assert all([m["status"] == "READY" for m in models])
     actual_names = [m["name"] for m in models]
     for exp in MODELS:
         assert exp["name"] in actual_names

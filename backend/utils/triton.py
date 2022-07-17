@@ -137,6 +137,11 @@ class TritonClient(InferenceServerClient):
             )
             for i in range(0, input_len, batch_size)
         ]
+
+        for one in model_outputs:
+            # TODO remove this clause once fixed
+            if one.name().lower() == "attention_mask":
+                model_outputs.remove(one)
         res = {
             model_out.name().lower(): np.vstack([
                 out[model_out.name().lower()] for out in outputs
@@ -171,7 +176,7 @@ class TritonClient(InferenceServerClient):
         # TODO to integrate into a model
         if "embeddings" in res and "attention_mask" in res:
             res["embeddings"] = mean_pooling(
-                res["embeddings"], res["attention_mask"]
+                res["embeddings"], res.pop("attention_mask")
             )
 
         return res

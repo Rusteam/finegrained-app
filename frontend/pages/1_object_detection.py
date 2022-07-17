@@ -26,7 +26,7 @@ def _parse_detections(detections: dict) -> list:
 
 
 if image_file is not None:
-    img = Image.open(image_file.name)
+    img = Image.open(image_file)
     detections = client.predict(model_name=model,
                                 data={"image": encode_image_base64(img)})
     detections = _parse_detections(detections)

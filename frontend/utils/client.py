@@ -28,7 +28,9 @@ class Client:
             timeout=60 if bool(data) else 5,
             **kwargs,
         )
-        request.raise_for_status()
+        if request.status_code != 200:
+            print(request.content.decode())
+            request.raise_for_status()
         return request.json()["results"]
 
     def list_models(self):
