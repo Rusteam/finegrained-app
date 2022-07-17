@@ -37,11 +37,13 @@ class Client:
         models = self._make_request("get", "/models")
         return [m["name"] for m in models]
 
-    def predict(self, model_name: str, data, **kwargs):
-        out = self._make_request(
-            "post", f"/models/{model_name}/predict", data=data, **kwargs
-        )
-        return out
+    def list_embeddings(self):
+        embeddings = self._make_request("get", "/embeddings")
+        return embeddings
+
+    def list_pipelines(self):
+        pipe_names = self._make_request("get", "/pipelines")
+        return pipe_names
 
     def index(self, data_name: str, vectors, data):
         resp = self._make_request(
@@ -54,14 +56,11 @@ class Client:
         )
         return resp
 
-    def search_similar(self, data_name: str, vectors, top_k=3):
-        resp = self._make_request(
-            "post",
-            f"/embeddings/{data_name}/search",
-            data=dict(vectors=vectors),
-            params=dict(top_k=top_k),
+    def predict(self, model_name: str, data, **kwargs):
+        out = self._make_request(
+            "post", f"/models/{model_name}/predict", data=data, **kwargs
         )
-        return resp
+        return out
 
     def predict_and_search(
         self, model_name: str, data_name: str, data, top_k=5
@@ -73,16 +72,17 @@ class Client:
         )
         return resp
 
-    def list_embeddings(self):
-        embeddings = self._make_request("get", "/embeddings")
-        return embeddings
-
-    def list_pipelines(self):
-        pipe_names = self._make_request("get", "/pipelines")
-        return pipe_names
-
     def run_pipeline(self, pipeline_name: str, data, **kwargs):
         out = self._make_request(
             "post", f"/pipelines/{pipeline_name}/predict", data=data, **kwargs
         )
         return out
+
+    def search_similar(self, data_name: str, vectors, top_k=3):
+        resp = self._make_request(
+            "post",
+            f"/embeddings/{data_name}/search",
+            data=dict(vectors=vectors),
+            params=dict(top_k=top_k),
+        )
+        return resp

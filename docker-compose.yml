@@ -50,8 +50,6 @@ services:
       - BACKEND_URL=http://backend:8100
       - GRADIO_DEBUG=false
     ports:
-      - 7860:7860
-    env_file:
-      - .gradio.env
+      - 8501:8501
     depends_on:
       - backend
