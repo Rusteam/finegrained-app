@@ -18,6 +18,11 @@ from ..utils.pipelines import Pipelines
 
 
 REQUEST_TYPE = Union[str, List[str]]
+DESCRIPTIONS = dict(
+    groupby="Group results by this key and return only top matching element",
+    top_k="Number of top matches to return",
+    squeeze="If parent array contains only one element, then takes the first element only",
+)
 
 
 def _post_init_image(image: REQUEST_TYPE) -> np.ndarray:
@@ -42,8 +47,12 @@ def _post_init_text(text: REQUEST_TYPE) -> np.ndarray:
 
 
 class InferRequest(BaseModel):
-    text: Optional[REQUEST_TYPE] = Field(default=None)
-    image: Optional[REQUEST_TYPE] = Field(default=None)
+    text: Optional[REQUEST_TYPE] = Field(
+        default=None, description="Plain text"
+    )
+    image: Optional[REQUEST_TYPE] = Field(
+        default=None, description="Base64 encoded image(s)"
+    )
 
     @validator("image")
     def decode_base64_image(cls, v):
@@ -62,13 +71,23 @@ class InferRequest(BaseModel):
 
 
 class EmbedRequest(BaseModel):
-    vectors: List[List[float]]
-    data: List[dict]
+    vectors: List[List[float]] = Field(
+        default=..., description="Vector representation of input data"
+    )
+    data: List[dict] = Field(
+        default=...,
+        description="Data fields that will be returned when searching",
+    )
 
 
 class SearchRequest(BaseModel):
-    vectors: List[List[float]]
-    top_k: Optional[int] = 3
+    vectors: List[List[float]] = Field(
+        default=..., description="Vector representation of input data"
+    )
+    top_k: Optional[int] = Field(
+        default=3, description=DESCRIPTIONS["top_k"]
+    )
+    groupby: Optional[str] = Field(default=..., description=DESCRIPTIONS["groupby"])
 
 
 app = FastAPI()
@@ -109,8 +128,9 @@ async def predict_and_search(
     model_name: str,
     data_name: str,
     request_body: InferRequest,
-    top_k: int = 5,
-    squeeze: bool = False,
+    top_k: int = Query(default=5, description=DESCRIPTIONS["top_k"]),
+    squeeze: bool = Query(default=False, description=DESCRIPTIONS["squeeze"]),
+    groupby: Optional[str] = Query(default=None, description=DESCRIPTIONS["groupby"])
 ):
     """Extract features from raw data and compare against database."""
     prediction = triton.predict(model_name, request_body.dict())
@@ -118,6 +138,7 @@ async def predict_and_search(
         index_file=_make_vector_path(data_name),
         vectors=prediction["embeddings"],
         top_k=top_k,
+        groupby=groupby
     )
 
     if squeeze and len(res) == 1:
@@ -158,6 +179,7 @@ async def search_similar(data_name: str, request_body: SearchRequest):
         index_file=_make_vector_path(data_name),
         vectors=request_body.vectors,
         top_k=request_body.top_k,
+        groupby=request_body.groupby
     )
     return {"results": res}
 

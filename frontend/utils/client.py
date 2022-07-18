@@ -63,12 +63,13 @@ class Client:
         return out
 
     def predict_and_search(
-        self, model_name: str, data_name: str, data, top_k=5
+        self, model_name: str, data_name: str, data, **kwargs
     ):
         resp = self._make_request(
             "post",
-            f"/models/{model_name}/search/{data_name}?top_k={top_k}",
+            f"/models/{model_name}/search/{data_name}",
             data=data,
+            **kwargs
         )
         return resp
 

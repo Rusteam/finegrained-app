@@ -1,11 +1,11 @@
 """Index images and search
 """
+import itertools
+
 import json
-
 from dataclasses import dataclass
-
 from pathlib import Path
-from typing import List, Union, Tuple
+from typing import List, Union, Tuple, Dict, Optional
 
 import faiss
 import numpy as np
@@ -43,24 +43,14 @@ def to_float(sample: np.ndarray) -> List[np.ndarray]:
     return sample_float
 
 
-@dataclass
-class FeatureExtractor:
-    model: TritonClient
-
-    def _run_one(self, sample: np.ndarray) -> np.ndarray:
-        out, *_ = self.model.predict([to_float(sample)])
-        return out
-
-    def __call__(self, samples: List[np.ndarray]) -> np.ndarray:
-        outputs = [self._run_one(smp) for smp in samples]
-        outputs = np.vstack(outputs)
-        return outputs
-
-
-def init_feature_extractor(model_name: str) -> FeatureExtractor:
-    triton_client = TritonClient(model_name)
-    model = FeatureExtractor(model=triton_client)
-    return model
+def _groupby(results: List[dict], field: str, limit: int) -> List[dict]:
+    group_fn = lambda x: x[field]
+    distinct = []
+    for key, group in itertools.groupby(results, key=group_fn):
+        group = list(group)
+        sorted(group, key=lambda x: x["similarity"], reverse=True)
+        distinct.append(group[0])
+    return distinct[:limit]
 
 
 class SimilaritySearch:
@@ -78,14 +68,8 @@ class SimilaritySearch:
         labels_file = dest.parent / f"{dest.stem}.json"
         return labels_file
 
-    def _prepare_output(self, I: np.ndarray, D: np.ndarray, data):
-        results = [
-            [data[i] | {"similarity": float(p)} for i, p in zip(labels, probs)]
-            for labels, probs in zip(I, D)
-        ]
-        return results
-
-    def _prepare_vectors(self, vectors: Union[List, np.ndarray]):
+    @staticmethod
+    def _prepare_vectors(vectors: Union[List, np.ndarray]) -> np.ndarray:
         if not isinstance(vectors, np.ndarray):
             vectors = np.array(vectors)
         if vectors.dtype != np.float32:
@@ -93,7 +77,36 @@ class SimilaritySearch:
         faiss.normalize_L2(vectors)
         return vectors
 
-    def index(self, vectors: Union[List, np.ndarray], dest: str, data: List[dict]):
+    @staticmethod
+    def _prepare_output(
+        I: np.ndarray,
+        D: np.ndarray,
+        data,
+        groupby: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[List[dict]]:
+        results = [
+            [data[i] | {"similarity": float(p)} for i, p in zip(labels, probs)]
+            for labels, probs in zip(I, D)
+        ]
+        if bool(groupby):
+            assert limit is not None
+            results = [_groupby(res, groupby, limit) for res in results]
+        return results
+
+    def index(
+        self, vectors: Union[List, np.ndarray], dest: str, data: List[dict]
+    ):
+        """Create a new faiss index and save it.
+
+        Vectors will be saved to dest file and data will be saved to
+        (dest.stem).json file.
+
+        Args:
+            vectors: embeddings to build the index
+            dest: where to save embeddings
+            data: data will be saved along with vectors
+        """
         vectors = self._prepare_vectors(vectors)
         index = faiss.IndexFlatIP(vectors.shape[1])
         index.add(vectors)
@@ -101,9 +114,28 @@ class SimilaritySearch:
         write_json(data, self._make_data_path(dest))
         return {"index": index.ntotal}
 
-    def query_vectors(self, index_file, vectors: np.ndarray, top_k: int = 1):
+    def query_vectors(
+        self,
+        index_file,
+        vectors: np.ndarray,
+        top_k: int = 1,
+        groupby: Optional[str] = None,
+    ) -> List[List[Dict]]:
+        """Find top matching samples and return data and vectors.
+
+        Args:
+            index_file: faiss index file
+            vectors: query vectors (saved vectors are matched against these)
+            top_k: number of top matches to return
+            groupby: group results by this key and take top element only
+
+        Returns:
+            a list of top matches for each query vector.
+        """
         index, data = self.from_file(index_file)
         vectors = self._prepare_vectors(vectors)
-        D, I = index.search(vectors, top_k)
-        results = self._prepare_output(I, D, data)
+        D, I = index.search(vectors, top_k * 4 if groupby else top_k)
+        results = self._prepare_output(
+            I, D, data, groupby=groupby, limit=top_k
+        )
         return results

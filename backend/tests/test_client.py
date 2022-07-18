@@ -1,3 +1,5 @@
+import random
+
 import os
 from typing import List
 from pathlib import Path
@@ -219,7 +221,12 @@ def vector_db(client):
         json={
             "vectors": resp["embeddings"],
             "data": [
-                dict(index=i, url="http://url.com", other=None)
+                dict(
+                    index=i,
+                    url="http://url.com",
+                    other=None,
+                    group=random.choice(["A", "B"]),
+                )
                 for i in range(len(db))
             ],
         },
@@ -228,20 +235,37 @@ def vector_db(client):
 
 
 @pytest.mark.parametrize(
-    "model_name,text,top_k,squeeze",
+    "groupby,top_k", [(None, 3), (None, 1), ("group", 2), ("group", 1)]
+)
+def test_search_similar(client, vector_db, groupby, top_k):
+    n_q = 2
+    q_vectors = np.random.randn(n_q, 768).tolist()
+    resp = client.post(
+        f"/embeddings/{vector_db}/search",
+        json=dict(vectors=q_vectors, top_k=top_k, groupby=groupby),
+    )
+    assert resp.status_code == 200
+
+    results = resp.json()["results"]
+
+    _check_search_results(results, n_expected=n_q, top_k=top_k, groupby=groupby)
+
+
+@pytest.mark.parametrize(
+    "model_name,text,top_k,squeeze,groupby",
     [
-        ("sentence_similarity_model", "Simple query request", 2, False),
-        ("sentence_similarity_model", "Simple query request", 1, True),
-        ("sentence_similarity_model", ["List of", "short queries"], 4, False),
-        ("sentence_similarity_model", ["List of", "short queries"], 4, True),
+        ("sentence_similarity_model", "Simple query request", 2, False, None),
+        ("sentence_similarity_model", "Simple query request", 1, True, "group"),
+        ("sentence_similarity_model", ["List of", "short queries"], 2, False, "group"),
+        ("sentence_similarity_model", ["List of", "short queries"], 4, True, None),
     ],
 )
 def test_models_predict_and_search(
-    client, vector_db, model_name, text, top_k, squeeze
+    client, vector_db, model_name, text, top_k, squeeze, groupby
 ):
     resp = client.post(
         f"/models/{model_name}/search/{vector_db}",
-        params=dict(top_k=top_k, squeeze=squeeze),
+        params=dict(top_k=top_k, squeeze=squeeze, groupby=groupby),
         json={"text": text},
     )
     assert resp.status_code == 200, resp.content.decode()
@@ -254,12 +278,7 @@ def test_models_predict_and_search(
     if squeeze and n_request == 1:
         out = [out]
 
-    for item in out:
-        assert isinstance(item, list)
-        assert len(item) == top_k
-        for top in item:
-            assert isinstance(top, dict)
-            assert "index" in top
+    _check_search_results(out, n_expected=n_request, top_k=top_k, groupby=groupby)
 
 
 def test_list_pipelines(client):
@@ -295,3 +314,16 @@ def test_run_pipeline(client, pipe_name, request_body, params, expected):
     results = resp.json()["results"]
     assert len(results) == expected["n"]
     assert all([isinstance(one, dict) for one in results])
+
+
+def _check_search_results(results, n_expected, top_k, groupby):
+    assert len(results) == n_expected
+
+    for one in results:
+        assert len(one) == top_k
+
+        assert all(["index" in o for o in one])
+
+        if groupby:
+            key_vals = [o[groupby] for o in one]
+            assert len(key_vals) == len(set(key_vals))
