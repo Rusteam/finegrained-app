@@ -5,8 +5,8 @@ services:
     build:
       dockerfile: Triton.dockerfile
       context: .
-    image: triton-server:22.05-py3
-    container_name: triton
+    image: finegrained/triton-server:22.09-py3
+    container_name: fg-triton
     restart: on-failure
     volumes:
       - ./models/triton:/models
@@ -19,15 +19,14 @@ services:
       tritonserver
       --model-repository=/models
       --strict-model-config=false
-      --model-control-mode=explicit
-      --load-model=*
+      --model-control-mode=none
 
   backend:
     build:
       dockerfile: ./backend/Dockerfile
       context: .
-    image: finegrained-app/backend:0.1
-    container_name: fg-backend
+    image: finegrained/backend:0.1
+    container_name: fg-app-backend
     restart: on-failure
     environment:
       - VECTOR_STORAGE=/data/vectors
@@ -43,8 +42,8 @@ services:
     build:
       dockerfile: frontend/Dockerfile
       context: .
-    image: finegrained-app/frontend:0.1
-    container_name: fg-frontend
+    image: finegrained/frontend:0.1
+    container_name: fg-app-frontend
     restart: on-failure
     environment:
       - BACKEND_URL=http://backend:8100

@@ -1,4 +1,3 @@
-import dataclasses
 import numpy as np
 import shlex
 from pathlib import Path
@@ -9,7 +8,6 @@ from typing import Optional, Union, List
 
 from fastapi import FastAPI, Query
 from pydantic import BaseModel, Field, validator, root_validator
-from pydantic.dataclasses import dataclass
 
 from ..utils.image_utils import decode_base64_image
 from ..utils.similarity import SimilaritySearch

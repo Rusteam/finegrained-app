@@ -1,4 +1,4 @@
-FROM python:3.9.6-slim
+FROM python:3.10-slim-buster
 
 COPY frontend/requirements.txt .
 RUN pip install --no-cache -r requirements.txt
