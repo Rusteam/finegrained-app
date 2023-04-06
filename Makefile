@@ -21,3 +21,9 @@ down:
 
 logs:
 	docker-compose logs -f --tail=20
+
+backend_run:
+	uvicorn backend.main:app --reload --port 8100
+
+frontend_run:
+	streamlit run frontend/home.py

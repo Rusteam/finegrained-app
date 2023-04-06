@@ -3,10 +3,14 @@ from typing import List, Optional
 import numpy as np
 from pydantic import BaseModel, Field, validator, root_validator
 
-from backend.app.routes import DESCRIPTIONS
-from backend.utils.image_utils import decode_base64_image
+from ..utils.image_utils import decode_base64_image
 
 REQUEST_TYPE = str | List[str]
+DESCRIPTIONS = dict(
+    groupby="Group results by this key and return only top matching element",
+    top_k="Number of top matches to return",
+    squeeze="If parent array contains only one element, then takes the first element only",
+)
 
 
 def _post_init_image(image: REQUEST_TYPE) -> np.ndarray | list[np.ndarray] | None:

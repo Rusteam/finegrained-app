@@ -7,11 +7,11 @@ from typing import Optional, List
 
 from fastapi import FastAPI, Query
 
-from .scheme import EmbedRequest, SearchRequest, InferRequest
+from . import scheme
 from ..utils.similarity import SimilaritySearch
 from ..utils.triton import TritonClient
 from ..utils.pipelines import Pipelines
-
+from ..utils import tracking
 
 app = FastAPI()
 triton = TritonClient()
@@ -20,46 +20,46 @@ pipe = Pipelines(triton)
 vectors_path = Path(os.getenv("VECTOR_STORAGE", "./vectors"))
 vectors_path.mkdir(parents=True, exist_ok=True)
 
-DESCRIPTIONS = dict(
-    groupby="Group results by this key and return only top matching element",
-    top_k="Number of top matches to return",
-    squeeze="If parent array contains only one element, then takes the first element only",
-)
 
-
-@app.get("/")
+@app.get("/", tags=["health"])
 async def hello():
     """Check that the api is up and running."""
     return {"message": "Hello World"}
 
 
-@app.get("/models")
+### Models ###
+
+
+@app.get("/models", tags=["models"])
 async def list_models():
     """List models available for inference."""
     return {"results": triton.list_models()}
 
 
-@app.get("/models/{model_name}")
+@app.get("/models/{model_name}", tags=["models"])
 async def model_config(model_name: str):
     """Find out model input and output scheme."""
     return {"results": triton.get_model_details(model_name)}
 
 
-@app.post("/models/{model_name}/predict")
-async def predict(model_name: str, request_body: InferRequest, top_k: int = 0):
+@app.post("/models/{model_name}/predict", tags=["models"])
+async def predict(model_name: str, request_body: scheme.InferRequest, top_k: int = 0):
     """Run model inference with given data."""
     predicted = triton.predict(model_name, request_body.dict(), top_k=top_k)
     return {"results": predicted}
 
 
-@app.post("/models/{model_name}/search/{data_name}")
+### Similarity Search ###
+
+
+@app.post("/models/{model_name}/search/{data_name}", tags=["similarity_search"])
 async def predict_and_search(
-    model_name: str,
-    data_name: str,
-    request_body: InferRequest,
-    top_k: int = Query(default=5, description=DESCRIPTIONS["top_k"]),
-    squeeze: bool = Query(default=False, description=DESCRIPTIONS["squeeze"]),
-    groupby: Optional[str] = Query(default=None, description=DESCRIPTIONS["groupby"])
+        model_name: str,
+        data_name: str,
+        request_body: scheme.InferRequest,
+        top_k: int = Query(default=5, description=scheme.DESCRIPTIONS["top_k"]),
+        squeeze: bool = Query(default=False, description=scheme.DESCRIPTIONS["squeeze"]),
+        groupby: Optional[str] = Query(default=None, description=scheme.DESCRIPTIONS["groupby"])
 ):
     """Extract features from raw data and compare against database."""
     prediction = triton.predict(model_name, request_body.dict())
@@ -81,14 +81,14 @@ def _make_vector_path(data_name: str) -> str:
     return str(path.with_suffix(".faiss"))
 
 
-@app.get("/embeddings")
+@app.get("/embeddings", tags=["similarity_search"])
 async def list_data():
     data = [p.stem for p in vectors_path.glob("*.faiss")]
     return {"results": data}
 
 
-@app.post("/embeddings/{data_name}")
-async def index_data(data_name: str, request_body: EmbedRequest):
+@app.post("/embeddings/{data_name}", tags=["similarity_search"])
+async def index_data(data_name: str, request_body: scheme.EmbedRequest):
     """Ingest vectors and data into a database for searching."""
     assert len(request_body.vectors) == len(
         request_body.data
@@ -101,8 +101,8 @@ async def index_data(data_name: str, request_body: EmbedRequest):
     return {"results": res}
 
 
-@app.post("/embeddings/{data_name}/search")
-async def search_similar(data_name: str, request_body: SearchRequest):
+@app.post("/embeddings/{data_name}/search", tags=["similarity_search"])
+async def search_similar(data_name: str, request_body: scheme.SearchRequest):
     """Find top matching samples in a database"""
     res = sim.query_vectors(
         index_file=_make_vector_path(data_name),
@@ -113,25 +113,42 @@ async def search_similar(data_name: str, request_body: SearchRequest):
     return {"results": res}
 
 
-@app.get("/pipelines")
+### Pipelines ###
+
+
+@app.get("/pipelines", tags=["pipelines"])
 async def list_pipelines():
     """List available model pipelines."""
     return dict(results=pipe.list())
 
 
-@app.get("/pipelines/{pipeline}")
+@app.get("/pipelines/{pipeline}", tags=["pipelines"])
 async def pipeline_config(pipeline: str):
     one = pipe(pipeline)
     return dict(results=one.get_config())
 
 
-@app.post("/pipelines/{pipeline}/predict")
+@app.post("/pipelines/{pipeline}/predict", tags=["pipelines"])
 async def run_pipeline(
-    pipeline: str,
-    request_body: InferRequest,
-    model: List[str] = Query(default=...),
+        pipeline: str,
+        request_body: scheme.InferRequest,
+        model: List[str] = Query(default=...),
 ):
     """Run inference pipeline with requested models."""
     infer_pipe = pipe(pipeline, model_names=model)
     results = infer_pipe.run(request_body.dict())
     return dict(results=results)
+
+
+### Model registry ###
+
+@app.get("/registry/models", tags=["registry"])
+async def list_registry_models():
+    """List models available in the model registry."""
+    return dict(results=tracking.list_models())
+
+
+@app.get("/registry/models/{model_name}", tags=["registry"])
+async def list_registry_model_versions(model_name: str):
+    """List model versions available in the model registry."""
+    return dict(results=tracking.list_model_versions(model_name))

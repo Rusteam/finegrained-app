@@ -87,3 +87,6 @@ class Client:
             params=dict(top_k=top_k),
         )
         return resp
+
+    def list_registry_models(self) -> list[dict]:
+        return self._make_request("get", "/registry/models")
