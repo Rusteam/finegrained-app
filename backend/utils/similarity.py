@@ -117,7 +117,7 @@ class SimilaritySearch:
     def query_vectors(
         self,
         index_file,
-        vectors: np.ndarray,
+        vectors: np.ndarray | list,
         top_k: int = 1,
         groupby: Optional[str] = None,
     ) -> List[List[Dict]]:

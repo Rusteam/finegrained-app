@@ -18,7 +18,6 @@ services:
     command: >-
       tritonserver
       --model-repository=/models
-      --strict-model-config=false
       --model-control-mode=none
 
   backend:
