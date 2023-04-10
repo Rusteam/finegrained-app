@@ -1,5 +1,5 @@
 import os
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 from mlflow import MlflowClient
 from pydantic import BaseModel
@@ -26,8 +26,13 @@ class MLflowModelVersion(BaseModel):
 
 
 def _get_base_tracking_url(tracking_uri: str) -> str:
-    """Get base tracking URL."""
-    return tracking_uri.rstrip("#").rstrip("/")
+    """Get base tracking URL removing user and password from URI."""
+    parsed = urlparse(tracking_uri)
+    if parsed.username and parsed.password:
+        netloc = parsed.netloc.split("@", 1)[1]
+    else:
+        netloc = parsed.netloc
+    return f"{parsed.scheme}://{netloc}"
 
 
 def list_models() -> list[MLflowModel]:

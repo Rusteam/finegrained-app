@@ -7,7 +7,7 @@ from ..utils import tracking
 @pytest.fixture
 def mlflow_client_mock(mocker):
     mock = mocker.patch("backend.utils.tracking.mlflow_client")
-    mock.tracking_uri = "http://localhost:5000/#"
+    mock.tracking_uri = "http://user:password@localhost:5000/#"
     return mock
 
 

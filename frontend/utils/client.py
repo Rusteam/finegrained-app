@@ -90,3 +90,6 @@ class Client:
 
     def list_registry_models(self) -> list[dict]:
         return self._make_request("get", "/registry/models")
+
+    def list_registry_model_versions(self, model: str) -> list[dict]:
+        return self._make_request("get", f"/registry/models/{model}")
