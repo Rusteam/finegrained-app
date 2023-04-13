@@ -4,7 +4,11 @@ from urllib.parse import urljoin, urlparse
 from mlflow import MlflowClient
 from pydantic import BaseModel
 
+from .model_deployment import ModelRepository
+
 mlflow_client = MlflowClient(os.getenv("MLFLOW_TRACKING_URI"))
+model_repository = ModelRepository(os.getenv("TRITON_MODEL_REPOSITORY",
+                                             "./models/triton"))
 
 
 class MLflowModel(BaseModel):
@@ -53,3 +57,16 @@ def list_model_versions(model_name: str) -> list[MLflowModelVersion]:
     return [MLflowModelVersion(
         **dict(version) | {"link": urljoin(base_url, f"/#/models/{model.name}/versions/{version.version}")}
     ) for version in model.latest_versions]
+
+
+def deploy_model_version(model_name: str, version: int):
+    """Deploy model version to triton."""
+    global mlflow_client, model_repository
+    model_uri = f"models:/{model_name}/{version}"
+    model_repository.create_model_version(model_name, version, model_uri)
+
+
+def delete_model_version(model_name: str, version: int):
+    """Delete model version from triton."""
+    global model_repository
+    model_repository.delete_model_version(model_name, version)

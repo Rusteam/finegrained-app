@@ -3,6 +3,7 @@
 import streamlit as st
 
 from utils.client import Client
+from utils.st import handle_error
 
 client = Client()
 
@@ -12,11 +13,13 @@ st.title("Finegrained.AI app")
 
 st.text("Select a page on the left sidebar to interact with models.")
 
-st.header("Models")
-st.write(client.list_models())
 
-st.header("Vector data")
-st.write(client.list_embeddings())
+@handle_error
+def show_section(title: str, callback: callable):
+    st.subheader(title)
+    st.write(callback())
 
-st.header("Pipelines")
-st.write(client.list_pipelines())
+
+show_section("Models", client.list_models)
+show_section("Vectors", client.list_embeddings)
+show_section("Pipelines", client.list_pipelines)

@@ -5,7 +5,7 @@ import os
 
 from typing import Optional, List
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, HTTPException
 
 from . import scheme
 from ..utils.similarity import SimilaritySearch
@@ -50,7 +50,6 @@ async def predict(model_name: str, request_body: scheme.InferRequest, top_k: int
 
 
 ### Similarity Search ###
-
 
 @app.post("/models/{model_name}/search/{data_name}", tags=["similarity_search"])
 async def predict_and_search(
@@ -115,7 +114,6 @@ async def search_similar(data_name: str, request_body: scheme.SearchRequest):
 
 ### Pipelines ###
 
-
 @app.get("/pipelines", tags=["pipelines"])
 async def list_pipelines():
     """List available model pipelines."""
@@ -152,3 +150,21 @@ async def list_registry_models():
 async def list_registry_model_versions(model_name: str):
     """List model versions available in the model registry."""
     return dict(results=tracking.list_model_versions(model_name))
+
+
+@app.post("/registry/models/{model_name}/{version}", tags=["registry"])
+async def deploy_model_version_from_registry(model_name: str, version: int):
+    try:
+        tracking.deploy_model_version(model_name, version)
+        return dict(results="ok")
+    except FileExistsError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+
+@app.delete("/registry/models/{model_name}/{version}", tags=["registry"])
+async def delete_model_version(model_name: str, version: int):
+    try:
+        tracking.delete_model_version(model_name, version)
+        return dict(results="ok")
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=409, detail=str(e))

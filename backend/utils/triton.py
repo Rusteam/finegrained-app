@@ -1,17 +1,15 @@
-"""Connect to triton server nad perform inference
+"""Connect to triton server and perform inference
 """
 import os
-
-import numpy as np
-import tritonclient.utils
-from tritonclient.utils import np_to_triton_dtype, triton_to_np_dtype
 from typing import List
 
+import numpy as np
 from tritonclient.grpc import (
     InferenceServerClient,
     InferInput,
     InferRequestedOutput,
 )
+from tritonclient.utils import triton_to_np_dtype
 
 
 def calc_num_batches(data_size: int, batch_size: int) -> int:

@@ -2,6 +2,7 @@
 """
 from typing import List
 
+import requests
 import streamlit as st
 
 
@@ -21,3 +22,14 @@ def set_page(title: str, description: str):
     st.set_page_config(page_title=title.lower())
     st.title(title)
     st.text(description)
+
+
+def handle_error(func):
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except requests.exceptions.ConnectionError:
+            st.error("Could not connect to the backend. Is it running?")
+        except requests.exceptions.HTTPError as e:
+            st.error(f"Error: {e}")
+    return wrapper

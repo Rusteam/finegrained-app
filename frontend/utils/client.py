@@ -29,8 +29,7 @@ class Client:
             **kwargs,
         )
         if request.status_code != 200:
-            print(request.content.decode())
-            request.raise_for_status()
+            raise requests.exceptions.HTTPError(request.content.decode())
         return request.json()["results"]
 
     def list_models(self):
@@ -93,3 +92,13 @@ class Client:
 
     def list_registry_model_versions(self, model: str) -> list[dict]:
         return self._make_request("get", f"/registry/models/{model}")
+
+    def deploy_model_version_from_registry(self, model: str, version: int):
+        return self._make_request(
+            "post", f"/registry/models/{model}/{version}"
+        )
+
+    def delete_model_version(self, model: str, version: int):
+        return self._make_request(
+            "delete", f"/registry/models/{model}/{version}"
+        )
