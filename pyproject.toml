@@ -16,6 +16,7 @@ tritonclient = {extras = ["grpc"], version = "^2.32.0"}
 pydantic = "^1.10.7"
 pillow = "^9.5.0"
 numpy = "^1.24.2"
+mlflow-skinny = "^2.3.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.2.2"

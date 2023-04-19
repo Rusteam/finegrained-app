@@ -114,6 +114,8 @@ class TritonClient(InferenceServerClient):
         return conf.config.max_batch_size
 
     def predict(self, model_name: str, raw_input, to_list=True, **kwargs):
+        was_ready = self._load_if_needed(model_name)
+
         meta = self.get_model_details(model_name)
         model_outputs = self._parse_outputs(meta["outputs"], **kwargs)
         batch_size = self._get_batch_size(model_name)
@@ -153,6 +155,9 @@ class TritonClient(InferenceServerClient):
         if kwargs.get("top_k", 0) > 0:
             res = {k: parse_classes(v) for k, v in res.items()}
 
+        if not was_ready:
+            self.unload_model(model_name)
+
         return res
 
     def _predict_batch(
@@ -178,3 +183,11 @@ class TritonClient(InferenceServerClient):
             )
 
         return res
+
+    def _load_if_needed(self, model_name: str) -> bool:
+        if not self.is_model_ready(model_name):
+            self.load_model(model_name)
+            was_ready = False
+        else:
+            was_ready = True
+        return was_ready

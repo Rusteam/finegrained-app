@@ -18,7 +18,7 @@ services:
     command: >-
       tritonserver
       --model-repository=/models
-      --model-control-mode=none
+      --model-control-mode=explicit
 
   backend:
     build:
